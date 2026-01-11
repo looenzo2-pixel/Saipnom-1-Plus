@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Saipnom I Plus</title>
+  <style>
+    /* Estilos simples para modal e layout */
+    html,body{height:100%}
+    body{font-family:system-ui,Segoe UI,Roboto,Arial;margin:0;min-height:100vh;background:#fff;color:#333}
+    .modal{position:fixed;left:0;top:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.45)}
+    .modal-content{background:#fff;padding:1.25rem;border-radius:8px;max-width:420px;text-align:center;box-shadow:0 6px 18px rgba(0,0,0,0.15)}
+    button{margin:0.5rem;padding:0.5rem 0.75rem}
+    #message{margin-top:1rem;color:#333}
+
+    /* App em tela cheia */
+    .app-fullscreen{width:100%;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#000;color:#fff}
+    :fullscreen .app-fullscreen{height:100vh}
+
+    /* Three-dot menu styles */
+    .three-dot{background:transparent;border:none;font-size:1.25rem;padding:0 0.35rem;color:inherit;cursor:pointer}
+    #context-menu{display:none;position:fixed;z-index:10000;background:#fff;color:#000;border-radius:6px;box-shadow:0 6px 18px rgba(0,0,0,0.2);overflow:hidden;min-width:160px}
+    #context-menu .ctx-btn{display:block;width:100%;padding:0.6rem 0.75rem;border:none;background:transparent;text-align:left;cursor:pointer}
+    #context-menu .ctx-btn:hover{background:rgba(0,0,0,0.05)}
+
+    /* Configurações / switch */
+    #settings-overlay{display:none;position:fixed;inset:0;z-index:10001;background:#fff;color:#000;overflow:auto}
+    #settings-overlay .content{padding:1rem 1.25rem 4rem}
+    .setting-row{display:flex;align-items:center;justify-content:space-between;padding:.6rem 0;border-bottom:1px solid rgba(0,0,0,0.04)}
+    .setting-row h3{margin:0;font-size:1.25rem}
+    .switch{width:56px;height:32px;border-radius:999px;background:#ddd;display:inline-flex;align-items:center;padding:4px;cursor:pointer;transition:background .18s;position:relative}
+    .switch.on{background:#01a9f4}
+    .switch .dot-left{width:12px;height:12px;border-radius:50%;background:#01a9f4;margin-left:4px;opacity:0;transition:opacity .18s}
+    .switch:not(.on) .dot-left{opacity:1}
+    .switch .thumb{width:20px;height:20px;border-radius:50%;background:#000;transition:transform .18s;position:relative;z-index:2}
+    .switch.on .thumb{transform:translateX(22px)}
+    .switch.dragging .thumb{transition:none} 
+
+    /* Barra preta inferior (gesture area) */
+    #gesture-bar{position:fixed;left:0;right:0;bottom:0;height:10px;background:#000;z-index:10002}
+
+    /* Browser block overlay */
+    #browser-block-overlay{display:none;position:absolute;inset:52px 0 32px 0;background:rgba(255,255,255,0.98);color:#000;z-index:10001;align-items:center;justify-content:center;padding:1rem;text-align:center}
+    #browser-block-overlay .content{max-width:720px}
+    #browser-block-overlay .content p{margin:0 0 .75rem;font-size:1.05rem}
+    #browser-block-overlay button{padding:.5rem .75rem;border-radius:6px;border:none}
+    #browser-block-overlay .btn-secondary{background:transparent;color:#01a9f4;border:1px solid rgba(1,169,244,0.18)}
+    #browser-block-overlay .btn-copy{background:#eee;color:#000}
+  </style>
+</head>
+<body>
+  <main id="main-screen">
+    <h1>Saipnom I</h1>
+    <p>Deseja iniciar Saipnom I Plus?</p>
+    <button id="sim">Sim</button>
+    <a id="nao" href="https://looenzo2-pixel.github.io/home/" target="_blank" rel="noopener noreferrer">Não</a>
+    <div id="message" aria-live="polite"></div>
+
+    <!-- Lista de aplicativos instalados na tela inicial -->
+    <section id="home-installed" style="margin-top:1.25rem;padding:0.5rem 0">
+      <h2 style="font-size:1.6rem;margin:0 0 .5rem">Lista de aplicativos</h2>
+      <ul id="home-apps-list" style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:0.25rem"></ul>
+      <button id="open-setup" style="margin-top:0.75rem;padding:.5rem .8rem;border-radius:6px;border:1px solid #ccc;background:#fff;color:#01a9f4">Instalar apps</button>
+
+      <!-- Recomendados / atalho de instalação rápida -->
+      <div id="home-recommended" style="margin-top:1rem;padding-top:1rem;border-top:1px solid rgba(0,0,0,0.04)">
+        <!-- Linha de código removido por Lorenzo -->
+        <div id="home-recommended-list" style="display:flex;flex-direction:column;gap:0.25rem;"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Tela de configuração do celular -->
+  <section id="app-setup" style="display:none;padding:1rem;background:#01a9f4;color:#fff;min-height:100vh;box-sizing:border-box">
+    <h2 style="font-size:2.2rem;margin:0 0 1rem;line-height:1.05">Antes de começar, quais aplicativos deseja instalar?</h2>
+    <p style="font-size:1.6rem;margin:0 0 1rem;">Clique duas vezes em um aplicativo para prosseguir</p>
+    <ul id="apps-list" style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:0.5rem">
+      <li class="app-item" data-app="YouTube" style="font-size:2.2rem;padding:0.5rem 0;border-bottom:1px solid rgba(255,255,255,0.06)">YouTube</li>
+      <li class="app-item" data-app="Gmail" style="font-size:2.2rem;padding:0.5rem 0;border-bottom:1px solid rgba(255,255,255,0.06)">Gmail</li>
+      <li class="app-item" data-app="Maps Go" style="font-size:2.2rem;padding:0.5rem 0;border-bottom:1px solid rgba(255,255,255,0.06)">Maps Go</li>
+      <li class="app-item" data-app="Waze" style="font-size:2.2rem;padding:0.5rem 0;border-bottom:1px solid rgba(255,255,255,0.06)">Waze</li>
+      <li class="app-item" data-app="TikTok" style="font-size:2.2rem;padding:0.5rem 0;border-bottom:1px solid rgba(255,255,255,0.06)">TikTok</li>
+      <li class="app-item" data-app="TikTok Lite" style="font-size:2.2rem;padding:0.5rem 0;border-bottom:1px solid rgba(255,255,255,0.06)">TikTok Lite</li>
+      <li class="app-item" data-app="Instagram Lite" style="font-size:2.2rem;padding:0.5rem 0;border-bottom:1px solid rgba(255,255,255,0.06)">Instagram Lite</li>
+      <li class="app-item" data-app="Facebook Lite" style="font-size:2.2rem;padding:0.5rem 0;border-bottom:1px solid rgba(255,255,255,0.06)">Facebook Lite</li>
+      <li class="app-item" data-app="Maps" style="font-size:2.2rem;padding:0.5rem 0;border-bottom:1px solid rgba(255,255,255,0.06)">Maps</li>
+      <li class="app-item" data-app="Navegador" style="font-size:2.2rem;padding:0.5rem 0;border-bottom:1px solid rgba(255,255,255,0.06)">Navegador</li>
+      <li class="app-item" data-app="Configurações" style="font-size:2.2rem;padding:0.5rem 0;border-bottom:1px solid rgba(255,255,255,0.06)">Configurações</li>
+      <li class="app-item" data-app="Lorenzo's Recovery Mode" style="font-size:2.2rem;padding:0.5rem 0">Lorenzo's Recovery Mode</li>
+    </ul>
+    <div style="margin-top:1.25rem;display:flex;gap:0.5rem;align-items:center">
+      <button id="app-continue" disabled aria-disabled="true" style="padding:0.6rem 0.9rem;font-size:1.1rem;background:#fff;color:#01a9f4;border-radius:6px;border:none;opacity:0.45;cursor:not-allowed">Continuar</button>
+      <button id="app-cancel" style="padding:0.6rem 0.9rem;font-size:1.1rem;background:transparent;color:#fff;border:1px solid rgba(255,255,255,0.18);border-radius:6px">Voltar</button>
+      <div id="app-toast" style="margin-left:0.5rem;color:#fff;font-size:1rem;opacity:0.95"></div>
+    </div>
+  </section>
+
+  <div id="os-modal" class="modal" style="display:none">
+    <div class="modal-content">
+      <p>Não é uma melhor experiência usar em computadores. Deseja continuar mesmo assim?</p>
+      <button id="continuar">Continuar</button>
+      <button id="voltar">Voltar</button>
+    </div>
+  </div>
+
+  <!-- Browser embutido (overlay) -->
+  <div id="browser-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:#111;color:#fff;">
+    <div style="display:flex;align-items:center;gap:0.5rem;padding:0.6rem;background:rgba(0,0,0,0.4)">
+      <button id="browser-back" title="Voltar" style="padding:.4rem">◀</button>
+      <button id="browser-forward" title="Avançar" style="padding:.4rem">▶</button>
+      <input id="browser-address" type="text" placeholder="https://" style="flex:1;padding:.45rem;border-radius:6px;border:none;font-size:1rem" />
+      <button id="browser-go" style="padding:.45rem">Ir</button>
+      <button id="browser-reload" title="Recarregar" style="padding:.4rem">⟳</button>
+      <button id="browser-close" title="Fechar" style="padding:.4rem;background:#900;color:#fff;border:none;border-radius:6px">X</button>
+    </div>
+    <div style="height:calc(100% - 52px);background:#000;">
+      <iframe id="browser-frame" src="about:blank" style="width:100%;height:100%;border:none;" sandbox="allow-scripts allow-forms allow-popups"></iframe>
+    </div>
+    <div id="browser-status" style="position:absolute;left:0;bottom:0;padding:0.4rem 0.75rem;background:rgba(0,0,0,0.6);font-size:0.95rem;">Pronto</div>
+
+    <div id="browser-block-overlay" style="display:none;position:absolute;inset:52px 0 32px 0;align-items:center;justify-content:center;padding:1rem;text-align:center">
+      <div class="content">
+        <p>Não foi possível exibir este site nesta janela (o site bloqueia exibição em iframe).</p>
+        <div style="display:flex;gap:.5rem;justify-content:center">
+          <button id="browser-try-again" style="background:#01a9f4;color:#fff">Tentar novamente</button>
+          <button id="browser-copy-url" class="btn-copy">Copiar URL</button>
+          <button id="browser-open-external" class="btn-secondary" title="Abrir no navegador externo">Abrir no navegador</button>
+          <button id="browser-block-close" class="btn-secondary">Fechar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Context menu para ações nos apps -->
+  <div id="context-menu" style="display:none;position:fixed;z-index:10000;">
+    <button data-action="open" class="ctx-btn">Abrir</button>
+    <button data-action="install" class="ctx-btn">Instalar</button>
+    <button data-action="uninstall" class="ctx-btn">Desinstalar</button>
+    <button data-action="info" class="ctx-btn">Informações</button>
+  </div>
+
+  <!-- Tela de Configurações -->
+  <div id="settings-overlay" aria-hidden="true">
+    <div class="content">
+      <h1 style="font-size:2rem;margin:0 0 1rem">Configurações</h1>
+
+      <div class="setting-row">
+        <h3>Tela Cheia</h3>
+        <div id="fullscreen-toggle" class="switch" role="switch" aria-checked="false" tabindex="0">
+          <div class="dot-left" aria-hidden="true"></div>
+          <div class="thumb"></div>
+        </div>
+      </div>
+
+      <div class="setting-row" style="align-items:flex-start">
+        <h3>Sobre este celular</h3>
+        <div style="text-align:right">▾</div>
+      </div>
+      <p style="margin-top:0.6rem;line-height:1.45">Criado por Lorenzo; Versão: Android Plusló I; Este smartphone é um feature phone (celular básico).</p>
+
+    </div>
+    <div id="gesture-bar" title="Levante para voltar à tela inicial"></div>
+  </div>
+
+  <script>
+    // Ativa os handlers
+    document.getElementById('sim').addEventListener('click', startSaipnomI);
+    document.getElementById('nao').addEventListener('click', function(e){
+      const proceed = confirm('Deseja abrir este link?');
+      if (!proceed) e.preventDefault();
+    });
+
+    document.getElementById('voltar').addEventListener('click', function(){
+      document.getElementById('os-modal').style.display = 'none';
+      document.getElementById('message').textContent = 'Operação cancelada.';
+    });
+
+    document.getElementById('continuar').addEventListener('click', function(){
+      document.getElementById('os-modal').style.display = 'none';
+      // Pedimos tela cheia no gesto do usuário e então carregamos o app
+      attemptFullscreen().catch(()=>{}).finally(()=>loadSaipnomI());
+    });
+
+    function attemptFullscreen(){
+      const el = document.documentElement;
+      if (document.fullscreenElement) return Promise.resolve();
+      const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+      if (req) {
+        return req.call(el).catch(()=>{ console.warn('Fullscreen request failed or foi bloqueado'); });
+      }
+      return Promise.reject(new Error('Fullscreen API não suportada'));
+    }
+
+    function startSaipnomI(){
+      const ua = navigator.userAgent || navigator.vendor || window.opera;
+
+      // Bloqueio explícito: iPhone
+      if (/iphone/i.test(ua)){
+        document.getElementById('message').textContent = 'Proibido para iPhone.';
+        alert('Proibido para iPhone.');
+        return;
+      }
+
+      // Bloqueio explícito: macOS (iMac / MacBook)
+      if (/macintosh|mac os x/i.test(ua)){
+        document.getElementById('message').textContent = 'Proibido para iMac e Mac Book.';
+        alert('Proibido para iMac e Mac Book.');
+        return;
+      }
+
+      if (/android/i.test(ua)) {
+        // Android: tenta tela cheia (gesto do usuário) e segue carregando
+        attemptFullscreen().catch(()=>{}).finally(()=>loadSaipnomI());
+      } else if (/windows/i.test(ua)) {
+        // Windows: mostra aviso e opções
+        document.getElementById('os-modal').style.display = 'flex';
+      } else {
+        // Outros: informa a plataforma, tenta tela cheia e prossegue
+        document.getElementById('message').textContent = 'Plataforma detectada: ' + getPlatformName(ua) + '. Prosseguindo...';
+        attemptFullscreen().catch(()=>{}).finally(()=>{ setTimeout(loadSaipnomI, 700); });
+      }
+    }
+
+    function loadSaipnomI(){
+      // Simulação: mostra tela de carregamento e, em seguida, o app em execução
+      document.getElementById('message').textContent = 'Carregando Saipnom I...';
+      setTimeout(function(){
+        const installed = Object.keys(appsState).filter(k=>appsState[k]);
+        const appsHtml = installed.length ? ('<h2 style="margin-top:1rem">Apps instalados:</h2><ul>'+installed.map(a=>'<li>'+a+'</li>').join('')+'</ul>') : '<p style="margin-top:1rem">Nenhum app instalado.</p>';
+
+        // mantemos o DOM existente (overlays e configurações) e criamos um contêiner para o app
+        const main = document.getElementById('main-screen');
+        if (main) main.style.display = 'none';
+
+        let appRoot = document.getElementById('app-root');
+        if (!appRoot){
+          appRoot = document.createElement('div');
+          appRoot.id = 'app-root';
+          document.body.appendChild(appRoot);
+        }
+
+        appRoot.innerHTML = '<main class="app-fullscreen" style="position:relative;padding:1rem"><button id="app-settings-btn" title="Configurações" style="position:absolute;right:12px;top:12px;padding:0.4rem;border-radius:6px;background:#fff;color:#01a9f4;border:none">⚙</button><h1>Saipnom I — Em execução</h1><p>Bem-vindo!</p><div id="app-root-apps" style="margin-top:1rem">'+appsHtml+'</div><div style="margin-top:1rem"><button id="app-install-btn" style="padding:.5rem .8rem;border-radius:6px;background:#fff;color:#01a9f4;border:none">Instalar apps</button></div></main>';
+
+        // conecta botão para abrir a tela de instalação sem recarregar tudo
+        const btn = document.getElementById('app-install-btn');
+        if (btn){
+          btn.addEventListener('click', function(){
+            // abre a tela de configuração/instalação
+            showAppSetup();
+            // garante que o app-root fique visível abaixo do setup
+            appRoot.style.display = '';
+            document.getElementById('message').textContent = '';
+          });
+        }
+
+        // conecta o botão de configurações dentro do simulador
+        const sbtn = document.getElementById('app-settings-btn');
+        if (sbtn){
+          sbtn.addEventListener('click', function(){ openSettings(); });
+        }
+
+        // renderiza a lista interativa de apps dentro do simulador
+        renderAppRootApps();
+      }, 800);
+    }
+
+    function getPlatformName(ua){
+      if (/android/i.test(ua)) return 'Android';
+      if (/iphone|ipad|ipod/i.test(ua)) return 'iOS';
+      if (/windows/i.test(ua)) return 'Windows';
+      if (/macintosh|mac os x/i.test(ua)) return 'Mac';
+      return 'Desconhecida';
+    }
+
+    function showInfo(type){
+      // Sem mensagem: função mantida para compatibilidade, mas não exibe texto.
+    }
+
+    /* --------- LÓGICA DE CONFIGURAÇÃO DE APLICATIVOS --------- */
+    const appsState = JSON.parse(localStorage.getItem('saipnom_apps')||'{}');
+
+    /* Manifest simplificado: define comportamento dos apps */
+    const appManifest = {
+      'YouTube': { type: 'web', url: 'https://www.youtube.com' },
+      'Gmail': { type: 'web', url: 'https://mail.google.com' },
+      'Maps': { type: 'web', url: 'https://maps.google.com' },
+      'Waze': { type: 'web', url: 'https://www.waze.com' },
+      'TikTok': { type: 'web', url: 'https://www.tiktok.com' },
+      'Navegador': { type: 'local', id: 'browser' },
+      'Configurações': { type: 'local', id: 'settings' },
+      "Lorenzo's Recovery Mode": { type: 'local', id: 'recovery' }
+    };
+
+    function renderHomeApps(){
+      const list = document.getElementById('home-apps-list');
+      list.innerHTML = '';
+      const installed = Object.keys(appsState).filter(k=>appsState[k]);
+      if (installed.length === 0){
+        const li = document.createElement('li');
+        li.textContent = 'Nenhum app instalado.';
+        li.style.opacity = '0.75';
+        list.appendChild(li);
+      } else {
+        installed.forEach(a=>{
+          const li = document.createElement('li');
+          li.textContent = a;
+          li.dataset.app = a;
+          li.style.fontSize = '1.4rem';
+          li.style.borderBottom = '1px solid rgba(0,0,0,0.06)';
+          li.style.padding = '0.35rem 0';
+          li.style.cursor = 'pointer';
+          // botão de mais opções
+          const btn = document.createElement('button');
+          btn.className = 'three-dot';
+          btn.textContent = '⋮';
+          btn.title = 'Mais opções';
+          btn.dataset.app = a;
+          btn.addEventListener('click', function(e){ e.stopPropagation(); showContextMenuFor(e.currentTarget, a, true); });
+          li.appendChild(btn);
+          list.appendChild(li);
+        });
+      }
+      // atualiza também a lista de recomendados
+      renderRecommendedApps();
+    }
+
+    function renderRecommendedApps(){
+      const container = document.getElementById('home-recommended-list');
+      if(!container) return;
+      container.innerHTML = '';
+      Object.keys(appManifest).forEach(name=>{
+        if (appsState[name]) return; // já instalado
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.justifyContent = 'space-between';
+        row.style.alignItems = 'center';
+        row.style.padding = '0.4rem 0';
+        row.style.borderBottom = '1px solid rgba(0,0,0,0.04)';
+        const span = document.createElement('span');
+        span.textContent = name;
+        span.style.fontSize = '1.2rem';
+        const controls = document.createElement('div');
+        controls.style.display = 'flex';
+        controls.style.gap = '0.4rem';
+        const btnMenu = document.createElement('button');
+        btnMenu.className = 'three-dot';
+        btnMenu.textContent = '⋮';
+        btnMenu.title = 'Mais opções';
+        btnMenu.dataset.app = name;
+        btnMenu.addEventListener('click', function(e){ e.stopPropagation(); showContextMenuFor(e.currentTarget, name, false); });
+        const btn = document.createElement('button');
+        btn.textContent = 'Instalar';
+        btn.style.padding = '0.35rem 0.6rem';
+        btn.style.borderRadius = '6px';
+        btn.style.border = '1px solid rgba(0,0,0,0.1)';
+        btn.style.background = '#fff';
+        btn.style.color = '#01a9f4';
+        btn.dataset.app = name;
+        btn.addEventListener('click', function(e){
+          e.stopPropagation();
+          installApp(name);
+        });
+        controls.appendChild(btnMenu);
+        controls.appendChild(btn);
+        row.appendChild(span);
+        row.appendChild(controls);
+        container.appendChild(row);
+      });
+      if (container.childElementCount === 0){
+        container.textContent = 'Nenhum recomendado disponível.';
+        container.style.opacity = '0.75';
+      }
+    }
+
+    function installApp(name){
+      appsState[name] = true;
+      localStorage.setItem('saipnom_apps', JSON.stringify(appsState));
+      // visual feedback
+      document.getElementById('app-toast').textContent = name + ' instalado.';
+      updateContinueState();
+      renderHomeApps();
+      // atualizar simulador se estiver rodando
+      renderAppRootApps();
+    }
+
+    function showAppSetup(){
+      document.getElementById('main-screen').style.display = 'none';
+      document.getElementById('app-setup').style.display = '';
+      // marca visual de instalados
+      document.querySelectorAll('.app-item').forEach(li=>{
+        const app = li.dataset.app;
+        if (appsState[app]) li.style.opacity = '0.5';
+      });
+      updateContinueState();
+      renderHomeApps();
+    }
+
+    function hideAppSetup(){
+      document.getElementById('app-setup').style.display = 'none';
+      document.getElementById('main-screen').style.display = '';
+    }
+
+    function updateContinueState(){
+      const btn = document.getElementById('app-continue');
+      const installedCount = Object.keys(appsState).filter(k=>appsState[k]).length;
+      if (installedCount > 0){
+        btn.disabled = false;
+        btn.removeAttribute('aria-disabled');
+        btn.style.opacity = '';
+        btn.style.cursor = 'pointer';
+      } else {
+        btn.disabled = true;
+        btn.setAttribute('aria-disabled','true');
+        btn.style.opacity = '0.45';
+        btn.style.cursor = 'not-allowed';
+      }
+    }
+
+    // Detecta duplo toque em mobile e dblclick em desktop
+    (function bindAppList(){
+      const list = document.getElementById('apps-list');
+      let lastTap = 0;
+
+      list.addEventListener('click', function(e){
+        if (!e.target.classList.contains('app-item')) return;
+        // desktop: dblclick event will handle actual double click; here we select on single click for accessibility
+        e.target.classList.toggle('selected');
+      });
+
+      list.addEventListener('dblclick', function(e){
+        if (!e.target.classList.contains('app-item')) return;
+        onAppDouble(e.target);
+      });
+
+      list.addEventListener('touchend', function(e){
+        const now = Date.now();
+        const el = e.target.closest('.app-item');
+        if (!el) return;
+        if (now - lastTap < 300){
+          e.preventDefault();
+          onAppDouble(el);
+        }
+        lastTap = now;
+      }, {passive:false});
+    })();
+
+    document.getElementById('open-setup').addEventListener('click', showAppSetup);
+
+    // Ao clicar em um app na tela inicial, abrimos o app instalado
+    document.getElementById('home-apps-list').addEventListener('click', function(e){
+      const li = e.target.closest('li');
+      if (!li || !li.dataset.app) return;
+      launchApp(li.dataset.app);
+    });
+
+    // Render apps inside the running Saipnom I simulation
+    function renderAppRootApps(){
+      const root = document.getElementById('app-root');
+      if (!root) return;
+      const container = root.querySelector('#app-root-apps');
+      if (!container) return;
+      container.innerHTML = '';
+      const installed = Object.keys(appsState).filter(k=>appsState[k]);
+      if (installed.length === 0){
+        const p = document.createElement('p'); p.textContent = 'Nenhum app instalado.'; p.style.opacity = '0.8'; container.appendChild(p); return;
+      }
+      installed.forEach(name=>{
+        const row = document.createElement('div');
+        row.style.display = 'flex'; row.style.justifyContent = 'space-between'; row.style.alignItems = 'center'; row.style.padding = '.5rem 0';
+        const span = document.createElement('span'); span.textContent = name; span.style.fontSize = '1.2rem';
+
+        const controls = document.createElement('div'); controls.style.display = 'flex'; controls.style.gap = '0.4rem';
+
+        const openBtn = document.createElement('button'); openBtn.textContent = 'Abrir'; openBtn.style.padding = '.35rem .6rem'; openBtn.style.borderRadius = '6px';
+        openBtn.addEventListener('click', function(e){ e.stopPropagation(); launchApp(name); });
+
+        const uninstallBtn = document.createElement('button');
+        uninstallBtn.textContent = 'Desinstalar';
+        uninstallBtn.style.padding = '.35rem .6rem';
+        uninstallBtn.style.borderRadius = '6px';
+        uninstallBtn.style.border = '1px solid rgba(200,0,0,0.1)';
+        uninstallBtn.style.background = 'transparent';
+        uninstallBtn.style.color = '#900';
+        uninstallBtn.addEventListener('click', function(e){ e.stopPropagation(); if (confirm('Deseja desinstalar ' + name + '?')) { uninstallApp(name); } });
+
+        controls.appendChild(openBtn);
+        controls.appendChild(uninstallBtn);
+
+        row.appendChild(span); row.appendChild(controls);
+        container.appendChild(row);
+      });
+    }
+
+    function onAppDouble(li){
+      const app = li.dataset.app;
+      // Simula 'instalação'
+      appsState[app] = true;
+      localStorage.setItem('saipnom_apps', JSON.stringify(appsState));
+      li.style.opacity = '0.5';
+      document.getElementById('app-toast').textContent = app + ' instalado.';
+      updateContinueState();
+      renderHomeApps();
+    }
+
+    document.getElementById('app-continue').addEventListener('click', function(){
+      attemptFullscreen().catch(()=>{}).finally(()=>{
+        hideAppSetup();
+        loadSaipnomI();
+      });
+    });
+
+    document.getElementById('app-cancel').addEventListener('click', function(){
+      hideAppSetup();
+      document.getElementById('message').textContent = 'Instalação cancelada.';
+    });
+
+    /* --------- NAVEGADOR EMBUTIDO --------- */
+    let browserHistory = [];
+    let browserIndex = -1;
+    let browserLastUrl = '';
+    let browserLoadTimer = null;
+
+    function updateBrowserNavState(){
+      const back = document.getElementById('browser-back');
+      const fwd = document.getElementById('browser-forward');
+      if (back) back.disabled = !(browserIndex > 0);
+      if (fwd) fwd.disabled = !(browserIndex < browserHistory.length - 1);
+    }
+
+    function normalizeUrl(url){
+      url = (url||'').trim();
+      if (!url) return 'about:blank';
+      if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+      return url;
+    }
+
+    function launchApp(name){
+      const meta = appManifest[name];
+      if (!meta) { alert('App não encontrado: '+name); return; }
+      if (meta.type === 'web' && meta.url){
+        // Abrimos sempre no Navegador embutido (não abrimos novas abas automaticamente)
+        try{
+          openBrowser(meta.url);
+        }catch(err){
+          document.getElementById('app-toast').textContent = 'Não foi possível abrir o navegador embutido.';
+          showBrowserBlocked(meta.url);
+        }
+        return;
+      }
+      if (meta.type === 'local'){
+        if (meta.id === 'browser') return openBrowser();
+        if (meta.id === 'settings') return openSettings();
+        // outros ids locais podem ser tratados aqui
+        alert(name + ' aberto (simulado)');
+      }
+    }
+
+    function openBrowser(initialUrl){
+      document.getElementById('browser-overlay').style.display = 'block';
+      const addr = document.getElementById('browser-address');
+      const start = initialUrl ? normalizeUrl(initialUrl) : 'https://www.google.com';
+      loadBrowserUrl(start);
+    }
+
+    function closeBrowser(){
+      document.getElementById('browser-overlay').style.display = 'none';
+      document.getElementById('browser-frame').src = 'about:blank';
+      browserHistory = []; browserIndex = -1; browserLastUrl = '';
+    }
+
+    /* --------- CONFIGURAÇÕES (app local) --------- */
+    const settingsState = JSON.parse(localStorage.getItem('saipnom_settings')||'{}');
+    if (typeof settingsState.fullscreen === 'undefined') settingsState.fullscreen = false;
+
+    function openSettings(){
+      document.getElementById('settings-overlay').style.display = 'block';
+      document.getElementById('settings-overlay').ariaHidden = 'false';
+      renderSettingsUI();
+    }
+
+    function closeSettings(){
+      document.getElementById('settings-overlay').style.display = 'none';
+      document.getElementById('settings-overlay').ariaHidden = 'true';
+    }
+
+    function renderSettingsUI(){
+      const sw = document.getElementById('fullscreen-toggle');
+      sw.classList.toggle('on', !!settingsState.fullscreen);
+      sw.setAttribute('aria-checked', settingsState.fullscreen ? 'true' : 'false');
+    }
+
+    // Toggle logic and draggable behavior for the fullscreen switch
+    function setFullscreenState(on){
+      settingsState.fullscreen = !!on;
+      localStorage.setItem('saipnom_settings', JSON.stringify(settingsState));
+      renderSettingsUI();
+      if (settingsState.fullscreen) attemptFullscreen().catch(()=>{});
+      else if (document.fullscreenElement) {
+        try{ document.exitFullscreen(); }catch(e){}
+      }
+    }
+
+    // click/tap toggles
+    const swEl = document.getElementById('fullscreen-toggle');
+    swEl.addEventListener('click', function(e){
+      // ignore clicks during drag
+      if (swEl.classList.contains('dragging')) return;
+      setFullscreenState(!settingsState.fullscreen);
+    });
+
+    // keyboard accessibility for switch
+    swEl.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFullscreenState(!settingsState.fullscreen); } });
+
+    // draggable implementation
+    (function makeSwitchDraggable(){
+      const thumb = swEl.querySelector('.thumb');
+      let dragging = false; let startX = 0; let thumbWidth = 0; let swRect = null; let currentX = 0; let maxX = 0;
+
+      function toLocalX(clientX){ return clientX - swRect.left - thumbWidth/2; }
+      function clamp(v,min,max){ return Math.max(min,Math.min(max,v)); }
+      function moveThumb(x){ thumb.style.transform = 'translateX(' + x + 'px)'; }
+
+      function pointerDown(clientX){
+        swRect = swEl.getBoundingClientRect();
+        thumbWidth = thumb.getBoundingClientRect().width;
+        maxX = swRect.width - thumbWidth - 4; // small padding
+        startX = toLocalX(clientX);
+        currentX = clamp(startX, 2, maxX);
+        dragging = true; swEl.classList.add('dragging'); moveThumb(currentX);
+      }
+      function pointerMove(clientX){ if (!dragging) return; currentX = clamp(toLocalX(clientX), 2, maxX); moveThumb(currentX); }
+      function pointerUp(){ if (!dragging) return; dragging = false; swEl.classList.remove('dragging'); const threshold = maxX/2; const on = currentX > threshold; setFullscreenState(on); thumb.style.transform = ''; }
+
+      // mouse
+      thumb.addEventListener('mousedown', function(e){ e.preventDefault(); pointerDown(e.clientX); });
+      document.addEventListener('mousemove', function(e){ pointerMove(e.clientX); });
+      document.addEventListener('mouseup', function(e){ pointerUp(); });
+      // touch
+      thumb.addEventListener('touchstart', function(e){ if (e.touches && e.touches[0]) pointerDown(e.touches[0].clientX); }, {passive:false});
+      document.addEventListener('touchmove', function(e){ if (e.touches && e.touches[0]) pointerMove(e.touches[0].clientX); }, {passive:false});
+      document.addEventListener('touchend', function(e){ pointerUp(); });
+    })();
+
+    // gesture: levante (swipe up) on #gesture-bar to go home
+    (function bindGestureBar(){
+      const bar = document.getElementById('gesture-bar');
+      let startY = null;
+      bar.addEventListener('touchstart', function(e){ startY = e.touches[0].clientY; }, {passive:true});
+      bar.addEventListener('touchend', function(e){
+        if (startY === null) return; const endY = (e.changedTouches && e.changedTouches[0].clientY) || 0; const dy = endY - startY; startY = null; if (dy < -40) { closeSettings(); document.getElementById('message').textContent = 'Voltando à tela inicial.'; renderHomeApps(); }
+      });
+      // mouse support: click/drag up
+      let mouseStart = null;
+      bar.addEventListener('mousedown', function(e){ mouseStart = e.clientY; });
+      document.addEventListener('mouseup', function(e){ if (mouseStart !== null){ const dy = e.clientY - mouseStart; mouseStart = null; if (dy < -40){ closeSettings(); document.getElementById('message').textContent = 'Voltando à tela inicial.'; renderHomeApps(); } } });
+    })();
+
+    function loadBrowserUrl(url){
+      const u = normalizeUrl(url);
+      const frame = document.getElementById('browser-frame');
+      // set UI
+      document.getElementById('browser-address').value = u;
+      document.getElementById('browser-status').textContent = 'Carregando...';
+
+      // set src and manage history
+      try{
+        frame.dataset.blocked = '0';
+        frame.src = u;
+        if (browserIndex === -1 || browserHistory[browserIndex] !== u){
+          browserHistory = browserHistory.slice(0, browserIndex+1);
+          browserHistory.push(u);
+          browserIndex = browserHistory.length-1;
+        }
+        browserLastUrl = u;
+        updateBrowserNavState();
+
+        // clear any previous timer
+        if (browserLoadTimer) { clearTimeout(browserLoadTimer); browserLoadTimer = null; }
+
+        // Set a timeout to detect likely failure/blocking
+        browserLoadTimer = setTimeout(function(){
+          // If iframe didn't finish loading to something usable in time, warn the user
+          let blocked = false;
+          try{
+            // try to access a property; if it throws, it's cross-origin (likely loaded) — assume ok
+            const href = frame.contentWindow && frame.contentWindow.location && frame.contentWindow.location.href;
+            if (!href || href === 'about:blank') blocked = true;
+          }catch(e){
+            // cross-origin access denied — assume loaded successfully
+            blocked = false;
+          }
+          if (blocked){
+            frame.dataset.blocked = '1';
+            document.getElementById('browser-status').textContent = 'O site pode bloquear exibição em iframe. Tente novamente ou copie a URL.';
+            showBrowserBlocked(u);
+          }
+        }, 2000);
+
+        frame.onload = function(){
+          if (browserLoadTimer){ clearTimeout(browserLoadTimer); browserLoadTimer = null; }
+          let href = u;
+          try{ href = frame.contentWindow.location.href; }
+          catch(e){ href = u; }
+          document.getElementById('browser-address').value = href;
+          document.getElementById('browser-status').textContent = 'Carregado: ' + href;
+          frame.dataset.blocked = '0';
+          updateBrowserNavState();
+        };
+
+      }catch(err){
+        document.getElementById('browser-status').textContent = 'Não foi possível carregar nesta janela.';
+      }
+    }
+
+    document.getElementById('browser-go').addEventListener('click', function(){
+      const url = document.getElementById('browser-address').value;
+      loadBrowserUrl(url);
+    });
+
+    document.getElementById('browser-address').addEventListener('keydown', function(e){
+      if (e.key === 'Enter') document.getElementById('browser-go').click();
+    });
+
+    document.getElementById('browser-close').addEventListener('click', closeBrowser);
+    document.getElementById('browser-reload').addEventListener('click', function(){
+      if (browserIndex >= 0) loadBrowserUrl(browserHistory[browserIndex]);
+    });
+    document.getElementById('browser-back').addEventListener('click', function(){
+      if (browserIndex > 0){ browserIndex--; loadBrowserUrl(browserHistory[browserIndex]); }
+    });
+
+    // Context menu handlers
+    function showContextMenuFor(el, name, installed){
+      const rect = el.getBoundingClientRect();
+      const menu = document.getElementById('context-menu');
+      // set dataset and show
+      menu.dataset.app = name;
+      menu.dataset.installed = installed ? '1' : '';
+      // show/hide options
+      const openBtn = menu.querySelector('[data-action="open"]');
+      const installBtn = menu.querySelector('[data-action="install"]');
+      const uninstallBtn = menu.querySelector('[data-action="uninstall"]');
+      openBtn.style.display = installed ? 'block' : (appManifest[name] && appManifest[name].type==='web' ? 'block' : 'none');
+      installBtn.style.display = installed ? 'none' : 'block';
+      uninstallBtn.style.display = installed ? 'block' : 'none';
+      // position (try to keep on-screen)
+      let left = rect.right - 160;
+      if (left < 6) left = 6;
+      let top = rect.bottom + 6;
+      if (top + 200 > window.innerHeight) top = rect.top - 6 - 120;
+      menu.style.left = left + 'px';
+      menu.style.top = top + 'px';
+      menu.style.display = 'block';
+    }
+
+    document.getElementById('context-menu').addEventListener('click', function(e){
+      const action = e.target.dataset.action;
+      const name = this.dataset.app;
+      if (!action || !name) return;
+      e.stopPropagation();
+      hideContextMenu();
+      if (action === 'open') launchApp(name);
+      else if (action === 'install') installApp(name);
+      else if (action === 'uninstall'){
+        if (confirm('Deseja desinstalar ' + name + '?')) uninstallApp(name);
+      } else if (action === 'info') alert('Informações: ' + name);
+    });
+
+    function hideContextMenu(){
+      const menu = document.getElementById('context-menu');
+      menu.style.display = 'none';
+      delete menu.dataset.app;
+      delete menu.dataset.installed;
+    }
+
+    document.addEventListener('click', function(e){
+      const menu = document.getElementById('context-menu');
+      if (menu && menu.style.display === 'block'){
+        // if click outside menu, hide
+        if (!e.target.closest('#context-menu')) hideContextMenu();
+      }
+    });
+
+    function uninstallApp(name){
+      if (!appsState[name]) return;
+      delete appsState[name];
+      localStorage.setItem('saipnom_apps', JSON.stringify(appsState));
+      document.getElementById('app-toast').textContent = name + ' desinstalado.';
+      renderHomeApps();
+      // update setup visuals
+      document.querySelectorAll('.app-item').forEach(li=>{ if (li.dataset.app === name) li.style.opacity=''; });
+      updateContinueState();
+      // atualizar simulador se estiver rodando
+      renderAppRootApps();
+    }
+
+    document.addEventListener('keydown', function(e){ if (e.key === 'Escape') hideContextMenu(); });
+    document.getElementById('browser-forward').addEventListener('click', function(){
+      if (browserIndex < browserHistory.length-1){ browserIndex++; loadBrowserUrl(browserHistory[browserIndex]); }
+    });
+
+    function showBrowserBlocked(url){
+      const ov = document.getElementById('browser-block-overlay');
+      if (!ov) return;
+      ov.style.display = 'flex';
+      ov.dataset.url = url || browserLastUrl || '';
+    }
+
+    function hideBrowserBlocked(){
+      const ov = document.getElementById('browser-block-overlay');
+      if (!ov) return;
+      ov.style.display = 'none';
+      delete ov.dataset.url;
+    }
+
+    document.getElementById('browser-try-again').addEventListener('click', function(){
+      const u = document.getElementById('browser-block-overlay').dataset.url || browserLastUrl;
+      if (u) { hideBrowserBlocked(); loadBrowserUrl(u); }
+    });
+    document.getElementById('browser-copy-url').addEventListener('click', function(){
+      const u = document.getElementById('browser-block-overlay').dataset.url || browserLastUrl;
+      if (u && navigator.clipboard) { navigator.clipboard.writeText(u).then(function(){ document.getElementById('browser-status').textContent = 'URL copiada para a área de transferência.'; }); }
+    });
+    document.getElementById('browser-open-external').addEventListener('click', function(){
+      const u = document.getElementById('browser-block-overlay').dataset.url || browserLastUrl;
+      if (u) {
+        hideBrowserBlocked();
+        document.getElementById('browser-status').textContent = 'Abrindo no navegador externo...';
+        try {
+          window.open(u, '_blank', 'noopener');
+        } catch (ex) {
+          const a = document.createElement('a'); a.href = u; a.target = '_blank'; a.rel = 'noopener'; a.click();
+        }
+      }
+    });
+    document.getElementById('browser-block-close').addEventListener('click', function(){ hideBrowserBlocked(); });
+
+    // hide overlay on successful load
+    (function(){ const frame = document.getElementById('browser-frame'); if (frame) frame.addEventListener('load', function(){ hideBrowserBlocked(); }); })();
+  </script>
+</body>
+</html>
