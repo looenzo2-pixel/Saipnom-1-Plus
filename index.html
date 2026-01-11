@@ -46,6 +46,12 @@
     #browser-block-overlay button{padding:.5rem .75rem;border-radius:6px;border:none}
     #browser-block-overlay .btn-secondary{background:transparent;color:#01a9f4;border:1px solid rgba(1,169,244,0.18)}
     #browser-block-overlay .btn-copy{background:#eee;color:#000}
+
+    /* Botão X visível em dispositivos móveis para fechar o navegador embutido */
+    #browser-close-mobile{display:none;position:fixed;right:12px;top:12px;width:40px;height:40px;border-radius:50%;background:#900;color:#fff;border:none;z-index:10002;box-shadow:0 4px 10px rgba(0,0,0,0.3);font-size:1.1rem;cursor:pointer}
+    @media (max-width:640px){
+      #browser-close-mobile{display:block}
+    }
   </style>
 </head>
 <body>
@@ -105,6 +111,7 @@
 
   <!-- Browser embutido (overlay) -->
   <div id="browser-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:#111;color:#fff;">
+    <button id="browser-close-mobile" title="Fechar" aria-label="Fechar navegador" style="display:none">✕</button>
     <div style="display:flex;align-items:center;gap:0.5rem;padding:0.6rem;background:rgba(0,0,0,0.4)">
       <button id="browser-back" title="Voltar" style="padding:.4rem">◀</button>
       <button id="browser-forward" title="Avançar" style="padding:.4rem">▶</button>
@@ -156,7 +163,7 @@
         <h3>Sobre este celular</h3>
         <div style="text-align:right">▾</div>
       </div>
-      <p style="margin-top:0.6rem;line-height:1.45">Criado por Lorenzo; Versão: Android Plusló I; Este smartphone é um feature phone (celular básico).</p>
+      <p style="margin-top:0.6rem;line-height:1.45">Criado por Lorenzo; Versão: Android Plusló I,I; Este smartphone é um feature phone (celular básico).</p>
 
     </div>
     <div id="gesture-bar" title="Levante para voltar à tela inicial"></div>
@@ -722,6 +729,8 @@
     });
 
     document.getElementById('browser-close').addEventListener('click', closeBrowser);
+    // Mobile close (floating X) — visible on small screens
+    (function(){ const btn = document.getElementById('browser-close-mobile'); if (btn) btn.addEventListener('click', closeBrowser); })();
     document.getElementById('browser-reload').addEventListener('click', function(){
       if (browserIndex >= 0) loadBrowserUrl(browserHistory[browserIndex]);
     });
