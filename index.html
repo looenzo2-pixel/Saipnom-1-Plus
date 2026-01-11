@@ -47,10 +47,10 @@
     #browser-block-overlay .btn-secondary{background:transparent;color:#01a9f4;border:1px solid rgba(1,169,244,0.18)}
     #browser-block-overlay .btn-copy{background:#eee;color:#000}
 
-    /* Botão X visível em dispositivos móveis para fechar o navegador embutido */
-    #browser-close-mobile{display:none;position:fixed;right:12px;top:12px;width:40px;height:40px;border-radius:50%;background:#900;color:#fff;border:none;z-index:10002;box-shadow:0 4px 10px rgba(0,0,0,0.3);font-size:1.1rem;cursor:pointer}
+    /* Botão X visível em dispositivos móveis para fechar o navegador embutido (inline, ao lado do >) */
+    #browser-close-mobile{display:none;background:#900;color:#fff;border:none;border-radius:6px;padding:.35rem .45rem;font-size:1rem;cursor:pointer;margin-left:0.25rem}
     @media (max-width:640px){
-      #browser-close-mobile{display:block}
+      #browser-close-mobile{display:inline-block}
     }
   </style>
 </head>
@@ -111,10 +111,10 @@
 
   <!-- Browser embutido (overlay) -->
   <div id="browser-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:#111;color:#fff;">
-    <button id="browser-close-mobile" title="Fechar" aria-label="Fechar navegador" style="display:none">✕</button>
     <div style="display:flex;align-items:center;gap:0.5rem;padding:0.6rem;background:rgba(0,0,0,0.4)">
       <button id="browser-back" title="Voltar" style="padding:.4rem">◀</button>
       <button id="browser-forward" title="Avançar" style="padding:.4rem">▶</button>
+      <button id="browser-close-mobile" title="Fechar" aria-label="Fechar navegador">✕</button>
       <input id="browser-address" type="text" placeholder="https://" style="flex:1;padding:.45rem;border-radius:6px;border:none;font-size:1rem" />
       <button id="browser-go" style="padding:.45rem">Ir</button>
       <button id="browser-reload" title="Recarregar" style="padding:.4rem">⟳</button>
@@ -526,6 +526,8 @@
     let browserIndex = -1;
     let browserLastUrl = '';
     let browserLoadTimer = null;
+    // When true the browser was launched as the local "Navegador" app inside the simulator
+    let browserLaunchedAsApp = false;
 
     function updateBrowserNavState(){
       const back = document.getElementById('browser-back');
@@ -555,14 +557,16 @@
         return;
       }
       if (meta.type === 'local'){
-        if (meta.id === 'browser') return openBrowser();
+        if (meta.id === 'browser') return openBrowser(undefined, true); // mark as launched-as-app
         if (meta.id === 'settings') return openSettings();
         // outros ids locais podem ser tratados aqui
         alert(name + ' aberto (simulado)');
       }
     }
 
-    function openBrowser(initialUrl){
+    function openBrowser(initialUrl, launchedAsApp){
+      // record whether the browser was opened as the local "Navegador" app
+      browserLaunchedAsApp = !!launchedAsApp;
       document.getElementById('browser-overlay').style.display = 'block';
       const addr = document.getElementById('browser-address');
       const start = initialUrl ? normalizeUrl(initialUrl) : 'https://www.google.com';
@@ -573,6 +577,18 @@
       document.getElementById('browser-overlay').style.display = 'none';
       document.getElementById('browser-frame').src = 'about:blank';
       browserHistory = []; browserIndex = -1; browserLastUrl = '';
+
+      // If the browser was launched as the local "Navegador" app, also exit that app
+      if (browserLaunchedAsApp){
+        browserLaunchedAsApp = false;
+        const appRoot = document.getElementById('app-root');
+        if (appRoot) appRoot.style.display = 'none';
+        const main = document.getElementById('main-screen');
+        if (main) main.style.display = '';
+        document.getElementById('message').textContent = 'Navegador fechado.';
+        // refresh home list (visual consistency)
+        renderHomeApps();
+      }
     }
 
     /* --------- CONFIGURAÇÕES (app local) --------- */
