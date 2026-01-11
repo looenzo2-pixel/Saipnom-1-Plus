@@ -59,6 +59,7 @@
     <h1>Saipnom I</h1>
     <p>Deseja iniciar Saipnom I Plus?</p>
     <button id="sim">Sim</button>
+    <a id="nao" href="https://looenzo2-pixel.github.io/home/" target="_blank" rel="noopener noreferrer">Não</a>
     <div id="message" aria-live="polite"></div>
 
     <!-- Lista de aplicativos instalados na tela inicial -->
@@ -162,7 +163,7 @@
         <h3>Sobre este celular</h3>
         <div style="text-align:right">▾</div>
       </div>
-      <p style="margin-top:0.6rem;line-height:1.45">Criado por Lorenzo; Versão: Android Plusló I,V; Este smartphone é um feature phone (celular básico).</p>
+      <p style="margin-top:0.6rem;line-height:1.45">Criado por Lorenzo; Versão: Android Plusló I,I; Este smartphone é um feature phone (celular básico).</p>
 
     </div>
     <div id="gesture-bar" title="Levante para voltar à tela inicial"></div>
@@ -171,6 +172,7 @@
   <script>
     // Ativa os handlers
     document.getElementById('sim').addEventListener('click', startSaipnomI);
+    document.getElementById('nao').addEventListener('click', function(e){
       const proceed = confirm('Deseja abrir este link?');
       if (!proceed) e.preventDefault();
     });
@@ -863,4 +865,3 @@
   </script>
 </body>
 </html>
-
